@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MarPub Sync - Vessel Publication Compliance</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
+        .sync-btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .sync-btn:hover { background: #0056b3; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #343a40; color: white; padding: 12px; text-align: left; position: sticky; top: 0; }
+        td { padding: 12px; border-bottom: 1px solid #eee; }
+        input { width: 90%; padding: 5px; border: 1px solid #ddd; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .badge-green { background: #d4edda; color: #155724; }
+        .badge-red { background: #f8d7da; color: #721c24; }
+        .category-row { background: #e9ecef; font-weight: bold; color: #495057; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>🚢 MarPub Sync</h1>
+        <button class="sync-btn" onclick="syncData()">🔄 Sync Latest Editions (Internet Required)</button>
+    </div>
+
+    <table id="pubTable">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Publication Name</th>
+                <th>Onboard Edition</th>
+                <th>Latest (Live)</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="pubList"></tbody>
+    </table>
+</div>
+
+<script>
+    // Full Publication List from OM-32
+    const initialPubs = [
+        { cat: "General Publications", id: "IMO–110E", title: "SOLAS Consolidated Edition", onboard: "", latest: "2024" },
+        { id: "IMO-982E", title: "Life-Saving Appliances inc LSA Code", onboard: "", latest: "2023" },
+        { id: "IMO-155E", title: "FSS Code (Int’l Fire Safety Systems)", onboard: "", latest: "2025" },
+        { id: "IMO – 116E", title: "Guide to Maritime Security & ISPS Code", onboard: "", latest: "2021" },
+        { id: "IMO-117E", title: "ISM Code and Guidelines", onboard: "", latest: "2024" },
+        { id: "ISF022", title: "ILO Maritime Labour Convention App.", onboard: "", latest: "2024" },
+        { id: "IMO-867E", title: "Code on Alerts and Indicators", onboard: "", latest: "2010" },
+        { id: "IMO-938E", title: "STCW (inc. 2010 Manila Amdts)", onboard: "", latest: "2026" },
+        { id: "WITH095", title: "Guidance Manual for Tanker Structures", onboard: "", latest: "2024" },
+        { id: "WITH063", title: "Control of Drugs & Alcohol Onboard", onboard: "", latest: "1995" },
+        { id: "IMO-968E", title: "Guidelines on Fatigue", onboard: "", latest: "2019" },
+        { id: "IMO-987E", title: "Standard Marine Communication Phrases", onboard: "", latest: "2005" },
+        { id: "HMSO036", title: "COSWP (UK MCA)", onboard: "", latest: "2025" },
+        { id: "IMO-970E", title: "GMDSS Manual", onboard: "", latest: "2024" },
+        { cat: "Navigational Publications", id: "WITH009", title: "Bridge Procedures Guide (ICS)", onboard: "", latest: "2022" },
+        { id: "IMO-904E", title: "COLREG Consolidated", onboard: "", latest: "2003" },
+        { id: "IMO-927E", title: "Ship’s Routeing", onboard: "", latest: "2025" },
+        { id: "IMO-962E", title: "IAMSAR Manual Vol 3", onboard: "", latest: "2025" },
+        { id: "NP-131", title: "Admiralty Maritime Data Catalogue", onboard: "", latest: "2026" },
+        { cat: "Tanker Specific", id: "IMO-520E", title: "MARPOL Consolidated Edition", onboard: "", latest: "2022" },
+        { id: "WITH007", title: "ISGOTT Oil Tankers & Terminals", onboard: "", latest: "2020" },
+        { id: "IMO-200E", title: "IMDG Code Vol 1 & 2", onboard: "", latest: "2024" },
+        { id: "IMO-100E", title: "IBC Code (Chemicals in Bulk)", onboard: "", latest: "2020" },
+        { id: "WITH104", title: "Tanker Safety Guide (Chemicals)", onboard: "", latest: "2021" }
+        // ... (Add all other IDs from the list provided in latest.json)
+    ];
+
+    let data = JSON.parse(localStorage.getItem('vessel_pubs')) || initialPubs;
+
+    function render() {
+        const list = document.getElementById('pubList');
+        list.innerHTML = "";
+        data.forEach((p, i) => {
+            if (p.cat) list.innerHTML += `<tr class="category-row"><td colspan="5">${p.cat}</td></tr>`;
+            const isMatch = p.onboard.trim() === p.latest.trim();
+            list.innerHTML += `
+                <tr>
+                    <td>${p.id}</td>
+                    <td>${p.title}</td>
+                    <td><input value="${p.onboard}" onchange="update(${i}, this.value)"></td>
+                    <td><strong>${p.latest}</strong></td>
+                    <td><span class="badge ${isMatch ? 'badge-green' : 'badge-red'}">${isMatch ? 'Current' : 'Outdated'}</span></td>
+                </tr>`;
+        });
+    }
+
+    function update(i, val) {
+        data[i].onboard = val;
+        localStorage.setItem('vessel_pubs', JSON.stringify(data));
+        render();
+    }
+
+    async function syncData() {
+        try {
+            // Replace with your actual GitHub Gist/Raw URL
+            const res = await fetch('https://YOUR_GITHUB_URL/latest.json');
+            const latestData = await res.json();
+            data = data.map(p => ({ ...p, latest: latestData[p.id] || p.latest }));
+            localStorage.setItem('vessel_pubs', JSON.stringify(data));
+            alert("Sync complete!");
+            render();
+        } catch (e) { alert("Offline: Using last known data."); }
+    }
+
+    render();
+</script>
+</body>
+</html>
